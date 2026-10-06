@@ -1,4 +1,5 @@
 import { Component } from 'react'
+import { IconAlert } from './ui'
 
 export default class ErrorBoundary extends Component {
   constructor(props) {
@@ -16,7 +17,7 @@ export default class ErrorBoundary extends Component {
     return (
       <div className="login-wrap">
         <div className="login-card">
-          <div className="login-icon">⚠️</div>
+          <div className="login-icon"><IconAlert size={26} /></div>
           <h1>কিছু একটা সমস্যা হয়েছে</h1>
           <p className="login-sub">{String(this.state.error.message || this.state.error)}</p>
           <button className="btn btn-primary login-btn" onClick={() => window.location.reload()}>

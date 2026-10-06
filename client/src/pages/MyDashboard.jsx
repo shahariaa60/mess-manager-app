@@ -1,18 +1,16 @@
 import { useEffect, useState } from 'react'
 import { fetchMyDashboard, fetchMyReport, fetchMyMealsOnDate } from '../api'
-import { toLocalDate } from '../utils'
+import {
+  PageHeader, StatCard, BalanceBadge, EmptyState, TableWrap,
+  IconMeals, IconChal, IconScale, IconReport, IconPayments, IconInbox, money,
+} from '../components/ui'
+import { num, MONTHS_BN, toLocalDate } from '../utils'
 
-function fmt(n) {
-  return (n == null ? 0 : n).toLocaleString('bn-BD')
-}
-
-const taka = n => `৳${fmt(Math.round(Number(n || 0)))}`
-
-const balanceBadge = v => {
-  if (v > 0) return <span className="badge badge-success">পাবে +৳{fmt(v)}</span>
-  if (v < 0) return <span className="badge badge-danger">দিবে ৳{fmt(Math.abs(v))}</span>
-  return <span className="badge badge-info">সমতা</span>
-}
+const SLOTS = [
+  { key: 'breakfast', label: 'সকাল' },
+  { key: 'lunch', label: 'দুপুর' },
+  { key: 'dinner', label: 'রাত' },
+]
 
 export default function MyDashboard() {
   const [data, setData] = useState(null)
@@ -22,6 +20,7 @@ export default function MyDashboard() {
 
   const todayStr = toLocalDate()
   const now = new Date()
+  const label = `${MONTHS_BN[now.getMonth()]} ${now.getFullYear()}`
 
   useEffect(() => {
     fetchMyDashboard().then(d => d && d.monthMeals !== undefined && setData(d))
@@ -40,131 +39,93 @@ export default function MyDashboard() {
   const d = dayMeals || { breakfast: 0, lunch: 0, dinner: 0, guest: 0, total: 0 }
 
   return (
-    <div>
-      <div className="page-header">
-        <h2>আমার ড্যাশবোর্ড</h2>
-      </div>
+    <div className="page">
+      <PageHeader title="আমার ড্যাশবোর্ড" subtitle={label} />
 
-      <div className="day-meals-card card" style={{ marginBottom: 24 }}>
-        <div className="day-meals-head">
-          <div>
-            <h3 style={{ marginBottom: 8 }}>দৈনিক খাবার</h3>
-            <p className="helper-text">
-              {day === todayStr ? 'আজ' : 'তথ্য'}
-              {day === todayStr && d.total > 0 ? ` ${fmt(d.total)} টি খাবার হয়েছে` : day === todayStr && d.total === 0 ? ' এখনো কোনো খাবার হয়নি' : ''}
-            </p>
-          </div>
-          <input type="date" value={day} max={todayStr} onChange={e => setDay(e.target.value)} className="day-date" />
+      <div className="card">
+        <div className="card-head">
+          <h3>দৈনিক খাবার</h3>
+          <input type="date" value={day} max={todayStr} onChange={e => setDay(e.target.value)} aria-label="তারিখ" style={{ width: 'auto' }} />
         </div>
         <div className="day-slots">
-          {[
-            { key: 'breakfast', label: 'সকাল', icon: '🌅' },
-            { key: 'lunch', label: 'দুপুর', icon: '🌞' },
-            { key: 'dinner', label: 'রাত', icon: '🌙' },
-          ].map(slot => (
+          {SLOTS.map(slot => (
             <div key={slot.key} className={`day-slot ${d[slot.key] > 0 ? 'yes' : 'no'}`}>
-              <div className="day-slot-icon">{slot.icon}</div>
+              <div className="day-slot-icon"><IconMeals size={22} /></div>
               <div className="day-slot-label">{slot.label}</div>
-              <div className="day-slot-state">
-                {d[slot.key] > 0 ? '✔ খেয়েছে' : '✘ খায়নি'}
-              </div>
+              <div className="day-slot-state">{d[slot.key] > 0 ? 'খেয়েছে' : 'খায়নি'}</div>
             </div>
           ))}
           <div className={`day-slot ${d.guest > 0 ? 'yes' : 'no'}`}>
-            <div className="day-slot-icon">👥</div>
+            <div className="day-slot-icon"><IconInbox size={22} /></div>
             <div className="day-slot-label">অতিথি</div>
-            <div className="day-slot-state">
-              {d.guest > 0 ? `✔ ${fmt(d.guest)} জন` : '✘ নেই'}
-            </div>
+            <div className="day-slot-state">{d.guest > 0 ? `${num(d.guest)} জন` : 'নেই'}</div>
           </div>
         </div>
         <div className="day-meals-total">
-          {day === todayStr ? 'আজকের' : 'এই দিনের'} মোট খাবার:{' '}
-          <strong className={d.total > 0 ? 'text-success' : 'text-danger'}>{fmt(d.total)}</strong>
+          মোট খাবার: <strong>{num(d.total)}</strong>
         </div>
       </div>
 
       <div className="card-grid">
-        <div className="stat-card">
-          <div className="stat-icon blue">🍛</div>
-          <div className="stat-info">
-            <h3>{fmt(data && data.monthMeals)}</h3>
-            <p>এই মাসের খাবার</p>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon green">🍚</div>
-          <div className="stat-info">
-            <h3>{fmt(data && data.monthChal)}</h3>
-            <p>এই মাসের চাল (পট)</p>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon red">🧾</div>
-          <div className="stat-info">
-            <h3>{taka(bill && bill.bill)}</h3>
-            <p>এই মাসের মোট বিল</p>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon green">💳</div>
-          <div className="stat-info">
-            <h3>{taka(bill && bill.monthDeposit)}</h3>
-            <p>এই মাসে জমা</p>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className={`stat-icon ${bill && bill.allTimeBalance >= 0 ? 'green' : 'red'}`}>⚖️</div>
-          <div className="stat-info">
-            <h3>{taka(bill && bill.allTimeBalance)}</h3>
-            <p>মোট ব্যালেন্স (সব মাস)</p>
-          </div>
-        </div>
+        <StatCard tone="slate" icon={<IconMeals size={19} />} label="এই মাসের খাবার" value={num(data && data.monthMeals)} />
+        <StatCard tone="yellow" icon={<IconChal size={19} />} label="এই মাসের চাল" value={`${num(data && data.monthChal)} পট`} />
+        <StatCard tone="slate" icon={<IconReport size={19} />} label="এই মাসের বিল" value={money(bill && bill.bill)} />
+        <StatCard tone="green" icon={<IconPayments size={19} />} label="এই মাসে জমা" value={money(bill && bill.monthDeposit)} />
+        <StatCard
+          tone={bill && bill.allTimeBalance >= 0 ? 'green' : 'red'}
+          icon={<IconScale size={19} />}
+          label="মোট ব্যালেন্স"
+          value={<BalanceBadge value={bill && bill.allTimeBalance} />}
+        />
       </div>
 
       <div className="card">
-        <h3 style={{ marginBottom: 8 }}>চাল ব্যালেন্স</h3>
+        <div className="card-head">
+          <h3>চাল ব্যালেন্স</h3>
+        </div>
         <p className="helper-text">
           {data && data.chalBalance > 0
-            ? `+${fmt(data.chalBalance)} পট চাল — পাবেন (জমা বেশি)`
+            ? `${num(data.chalBalance)} পট চাল পাবেন`
             : data && data.chalBalance < 0
-              ? `${fmt(Math.abs(data.chalBalance))} পট চাল — দিতে হবে`
+              ? `${num(Math.abs(data.chalBalance))} পট চাল দিতে হবে`
               : 'চাল ব্যালেন্স সমতা'}
         </p>
       </div>
 
       <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <div className="card-head">
           <h3>এই মাসের হিসাব</h3>
           {bill && bill.prevBalance !== 0 ? (
-            <span className={`badge ${bill.prevBalance > 0 ? 'badge-success' : 'badge-danger'}`}>
-              আগের মাস {bill.prevBalance > 0 ? '+' : '−'}{fmt(Math.abs(bill.prevBalance))}
+            <span className="sub">
+              আগের মাসের হিসাব {bill.prevBalance > 0 ? '+' : '−'}{money(Math.abs(bill.prevBalance))}
             </span>
           ) : null}
         </div>
         {bill ? (
-          <table>
-            <thead>
-              <tr>
-                <th>খাবার বিল</th>
-                <th>অন্যান্য খরচ</th>
-                <th>মোট বিল</th>
-                <th>এই মাসে জমা</th>
-                <th>Balance</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>{taka(bill.meal_bill)}</td>
-                <td>{taka(bill.add_expense_share)}</td>
-                <td><strong>{taka(bill.bill)}</strong></td>
-                <td>{taka(bill.monthDeposit)}</td>
-                <td>{balanceBadge(bill.allTimeBalance)}</td>
-              </tr>
-            </tbody>
-          </table>
+          <TableWrap>
+            <table>
+              <thead>
+                <tr>
+                  <th>খাবার বিল</th>
+                  <th className="num">অন্যান্য খরচ</th>
+                  <th className="num">মোট বিল</th>
+                  <th className="num">এই মাসে জমা</th>
+                  <th className="num">Balance</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td className="num">{money(bill.meal_bill)}</td>
+                  <td className="num">{money(bill.add_expense_share)}</td>
+                  <td className="num strong text-accent">{money(bill.bill)}</td>
+                  <td className="num strong">{money(bill.monthDeposit)}</td>
+                  <td className="num"><BalanceBadge value={bill.allTimeBalance} /></td>
+                </tr>
+              </tbody>
+            </table>
+          </TableWrap>
         ) : (
-          <p className="helper-text">এই মাসের জন্য এখনও তথ্য নেই।</p>
+          <EmptyState icon={<IconReport size={22} />} title="এই মাসের জন্য এখনও তথ্য নেই" />
         )}
       </div>
     </div>

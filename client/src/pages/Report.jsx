@@ -1,5 +1,11 @@
 import { useState, useEffect } from 'react'
 import { fetchReport, clearMonth, fetchMembers, setMealOverride } from '../api'
+import {
+  PageHeader, StatCard, BalanceBadge, EmptyState, TableWrap, MonthPicker,
+  IconMeals, IconChal, IconBazaar, IconExpenses, IconPayments, IconReport,
+  IconMembers, IconScale, IconTrash, IconCheck, IconAlert, money,
+} from '../components/ui'
+import { MONTHS_BN, num } from '../utils'
 
 function Report({ user }) {
   const now = new Date()
@@ -7,17 +13,17 @@ function Report({ user }) {
   const [year, setYear] = useState(String(now.getFullYear()))
   const [report, setReport] = useState(null)
   const [clearing, setClearing] = useState(false)
-  const [clearMsg, setClearMsg] = useState('')
+  const [clearMsg, setClearMsg] = useState(null)
   const [filter, setFilter] = useState('')
   const [memberMap, setMemberMap] = useState({})
 
-  const months = [
-    'January','February','March','April','May','June',
-    'July','August','September','October','November','December'
-  ]
+  const canEditMeals = user && ['admin', 'manager', 'co_manager'].includes(user.role)
+  const isAdmin = user && ['admin', 'manager'].includes(user.role)
+  const label = `${MONTHS_BN[parseInt(month) - 1]} ${year}`
 
   useEffect(() => {
-    setClearMsg('')
+    setClearMsg(null)
+    setReport(null)
     fetchReport(month, year).then(setReport)
   }, [month, year])
 
@@ -31,56 +37,44 @@ function Report({ user }) {
       .catch(() => {})
   }, [])
 
-  const isManager = user && ['admin', 'manager'].includes(user.role)
-  const canEditMeals = user && ['admin', 'manager', 'co_manager'].includes(user.role)
-
   const handleClearMonth = async () => {
-    const label = `${months[parseInt(month) - 1]} ${year}`
     if (!confirm(
-      `সতর্কতা!\n\n"${label}" মাসের সব ডেটা (meal, chal, bazaar, payment, expense) একসাথে মুছে যাবে।\nএই কাজ ফেরানো যাবে না।\n\nসত্যিই মুছতে চান?`
+      `সতর্কতা!\n\n"${label}" মাসের সব ডেটা (meal, chal, bazaar, payment, expense) একসাথে মুছে যাবে।\nএটি ফেরানো যাবে না।\n\nসত্যিই মুছতে চান?`
     )) return
     setClearing(true)
-    setClearMsg('')
     const res = await clearMonth(month, year)
     setClearing(false)
-    if (res && (res.meals !== undefined)) {
-      setClearMsg(`✅ "${label}" মাসের ডেটা মুছে গেছে — meal: ${res.meals}, chal: ${res.chal}, bazaar: ${res.bazaar}, expense: ${res.expenses}, payment: ${res.payments}`)
+    if (res && res.meals !== undefined) {
+      setClearMsg({ ok: true, text: `"${label}" মাসের ডেটা মুছে গেছে — meal: ${res.meals}, chal: ${res.chal}, bazaar: ${res.bazaar}, expense: ${res.expenses}, payment: ${res.payments}` })
       fetchReport(month, year).then(setReport)
     } else {
-      setClearMsg((res && res.error) || 'মুছতে ব্যর্থ হয়েছে')
+      setClearMsg({ ok: false, text: (res && res.error) || 'মুছতে ব্যর্থ হয়েছে' })
     }
   }
 
-  const handleOverrideGlobal = async (value) => {
-    await setMealOverride(value === '' ? { month, year, clear: true } : { month, year, meals: Number(value) })
+  const handleOverride = async (payload) => {
+    await setMealOverride(payload)
     fetchReport(month, year).then(setReport)
   }
 
-  const handleOverrideMember = async (memberId, value) => {
-    await setMealOverride(value === '' ? { member_id: memberId, month, year, clear: true } : { member_id: memberId, month, year, meals: Number(value) })
-    fetchReport(month, year).then(setReport)
+  const overrideValues = []
+  for (let i = 0; i <= 90; i++) overrideValues.push(String(i))
+  const countOptions = current => (
+    overrideValues.includes(String(current)) ? overrideValues : [...overrideValues, String(current)]
+  )
+
+  if (!report) {
+    return (
+      <div className="page">
+        <PageHeader title="মাসিক রিপোর্ট" subtitle={label} />
+        <EmptyState icon={<IconReport size={22} />} title="লোড হচ্ছে..." />
+      </div>
+    )
   }
 
-  const overrideOptions = ['']
-  for (let i = 0; i <= 90; i++) overrideOptions.push(String(i))
-
-  useEffect(() => {
-    if (!report) return
-
-    const m = report.memberBills || []
-    m.forEach(mm => {
-      mm.meal_bill = mm.meal_bill || 0
-      mm.add_expense_share = mm.add_expense_share || 0
-      mm.bill = mm.bill || 0
-      mm.paid = mm.paid || 0
-      mm.balance = mm.balance || 0
-    })
-  }, [report])
-
-  if (!report) return <p>Loading report...</p>
-
+  const rows = report.memberBills
   const query = filter.trim().toLowerCase()
-  const filteredBills = report.memberBills.filter(m => {
+  const filtered = rows.filter(m => {
     if (!query) return true
     const meta = memberMap[m.id] || {}
     const name = (meta.name || m.name || '').toLowerCase()
@@ -88,263 +82,213 @@ function Report({ user }) {
     return name.includes(query) || phone.includes(query)
   })
 
-  return (
-    <div>
-      <div className="page-header">
-        <h2>Report</h2>
-      </div>
+  const sum = pick => rows.reduce((s, m) => s + (Number(pick(m)) || 0), 0)
+  const totalGuest = sum(m => m.guest_meals)
+  const willGet = sum(m => (m.allTimeBalance > 0 ? m.allTimeBalance : 0))
+  const willGive = sum(m => (m.allTimeBalance < 0 ? -m.allTimeBalance : 0))
 
-      <div className="date-picker">
-        <select value={month} onChange={e => setMonth(e.target.value)}>
-          {months.map((m, i) => (
-            <option key={i} value={String(i + 1).padStart(2, '0')}>{m}</option>
-          ))}
-        </select>
-        <select value={year} onChange={e => setYear(e.target.value)}>
-          {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
-        </select>
-        {canEditMeals && (
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600 }}>
-            Fixed meal:
-            <select
-              value={report.fixedMeals != null ? String(report.fixedMeals) : ''}
-              onChange={e => handleOverrideGlobal(e.target.value)}
-              style={{ fontSize: 12, padding: '2px 4px' }}
-              title="সবাইর জন্য default fixed meal count (ঐচ্ছিক)"
-            >
-              <option value="">auto</option>
-              {overrideOptions.filter(v => v !== '' && Number(v) !== report.fixedMeals).map(v => (
-                <option key={v} value={v}>{v}</option>
-              ))}
-            </select>
-          </label>
+  return (
+    <div className="page">
+      <PageHeader
+        title="মাসিক রিপোর্ট"
+        subtitle={label}
+        actions={(
+          <>
+            <MonthPicker month={month} year={year} onMonth={setMonth} onYear={setYear} />
+            {isAdmin && (
+              <button className="btn btn-danger-quiet" onClick={handleClearMonth} disabled={clearing}>
+                <IconTrash size={16} />
+                {clearing ? 'মুছে যাচ্ছে...' : 'মাস মুছুন'}
+              </button>
+            )}
+          </>
         )}
-        {isManager && (
-          <button
-            className="btn btn-danger"
-            onClick={handleClearMonth}
-            disabled={clearing}
-            title="Manager only"
-          >
-            {clearing ? 'মুছে ফেলা হচ্ছে...' : '🗑️ এই মাসের সব ডেটা মুছুন (Manager only)'}
-          </button>
-        )}
-      </div>
+      />
 
       {clearMsg && (
-        <div className={clearMsg.startsWith('✅') ? 'login-success' : 'login-error'} style={{ marginBottom: 20 }}>
-          {clearMsg}
+        <div className={`alert ${clearMsg.ok ? 'alert-success' : 'alert-error'}`}>
+          {clearMsg.ok ? <IconCheck size={17} /> : <IconAlert size={17} />}
+          <span>{clearMsg.text}</span>
         </div>
       )}
 
       <div className="card-grid">
-        <div className="stat-card">
-          <div className="stat-icon blue">🍽️</div>
-          <div className="stat-info">
-            <h3>{report.totalMeals}</h3>
-            <p>মোট Meal</p>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon red">🍚</div>
-          <div className="stat-info">
-            <h3>{report.totalBillCount} count</h3>
-            <p>মোট Meal Count (বিল হিসাবে)</p>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon yellow">🍚</div>
-          <div className="stat-info">
-            <h3>{report.totalChal} পট</h3>
-            <p>চাল জমা হইচে</p>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon green">🛒</div>
-          <div className="stat-info">
-            <h3>৳{report.totalBazar.toLocaleString()}</h3>
-            <p>মোট বাজার খরচ</p>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon yellow">💰</div>
-          <div className="stat-info">
-            <h3>৳{(report.totalBazar + report.totalExpense).toLocaleString()}</h3>
-            <p>মোট খরচ (বাজার + Expense)</p>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon green">➕</div>
-          <div className="stat-info">
-            <h3>৳{report.addExpenseTotal.toLocaleString()}</h3>
-            <p>Add Expense (সব, member-এ ভাগ)</p>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon blue">👥</div>
-          <div className="stat-info">
-            <h3>৳{report.addExpenseShare.toLocaleString()}</h3>
-            <p>প্রতি member-এর Add Expense share</p>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon red">📊</div>
-          <div className="stat-info">
-            <h3>৳{report.perMealCost}</h3>
-            <p>Per Meal Rate (বাজার/মোট meal)</p>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon blue">🧾</div>
-          <div className="stat-info">
-            <h3>৳{report.totalBills.toLocaleString()}</h3>
-            <p>মোট বিল (সব)</p>
-          </div>
-        </div>
+        <StatCard tone="slate" icon={<IconMeals size={19} />} label="মোট Meal" value={num(report.totalMeals)} />
+        <StatCard tone="yellow" icon={<IconScale size={19} />} label="মোট Meal Count" value={num(report.totalBillCount)} />
+        <StatCard tone="yellow" icon={<IconChal size={19} />} label="চাল জমা" value={`${num(report.totalChal)} পট`} />
+        <StatCard tone="green" icon={<IconBazaar size={19} />} label="মোট বাজার" value={money(report.totalBazar)} />
+        <StatCard tone="slate" icon={<IconExpenses size={19} />} label="Add Expense" value={money(report.addExpenseTotal)} sub={`প্রতি সদস্য ${money(report.addExpenseShare)}`} />
+        <StatCard tone="red" icon={<IconPayments size={19} />} label="Meal Rate" value={money(report.perMealCost)} />
+        <StatCard tone="slate" icon={<IconReport size={19} />} label="মোট বিল" value={money(report.totalBills)} />
+        <StatCard tone="green" icon={<IconPayments size={19} />} label="মোট জমা" value={money(report.totalMonthDeposit)} sub="আগের মাসের হিসাবসহ" />
       </div>
 
       <div className="card">
-        <h3 style={{ marginBottom: 16 }}>Member Bills ({months[parseInt(month)-1]} {year})</h3>
-
-        <div className="date-picker" style={{ marginBottom: 16 }}>
-          <input
-            type="text"
-            placeholder="নাম বা নম্বর দিয়ে খুঁজুন..."
-            value={filter}
-            onChange={e => setFilter(e.target.value)}
-          />
-          {filter && (
-            <button className="btn btn-outline" onClick={() => setFilter('')}>সব দেখান</button>
-          )}
-          <span className="helper-text">
-            {query ? `${filteredBills.length} জন মিলেছে` : `সব মিলিয়ে ${report.memberBills.length} জন সদস্য`}
-          </span>
+        <div className="card-head">
+          <h3>সদস্যভিত্তিক হিসাব</h3>
+          <div className="toolbar">
+            <div className="month-picker">
+              <input
+                type="search"
+                placeholder="নাম বা নম্বর"
+                value={filter}
+                onChange={e => setFilter(e.target.value)}
+                aria-label="সদস্য খুঁজুন"
+              />
+              {filter && <button className="btn btn-ghost btn-sm" onClick={() => setFilter('')}>মুছুন</button>}
+            </div>
+            <span className="helper-text">
+              {query ? `${filtered.length} জন মিলেছে` : `${rows.length} জন সদস্য`}
+            </span>
+          </div>
         </div>
 
-        {filteredBills.length === 0 ? (
-          <div className="empty-state">
-            <div className="icon">👥</div>
-            <p>কোনো সদস্য পাওয়া যায়নি</p>
-          </div>
+        {filtered.length === 0 ? (
+          <EmptyState icon={<IconMembers size={22} />} title="কোনো সদস্য পাওয়া যায়নি" />
         ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Member</th>
-                <th>🌅</th>
-                <th>☀️</th>
-                <th>🌙</th>
-<th>Meal</th>
-                <th>Guest</th>
-                <th>Meal Count</th>
-                <th>Meal বিল</th>
-                <th>Add Expense</th>
-                <th>মোট বিল</th>
-                <th>জমা</th>
-                <th>Balance</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredBills.map((m, i) => {
-                const balance = m.allTimeBalance ?? m.balance
-                return (
+          <TableWrap>
+            <table>
+              <thead>
+                <tr>
+                  <th>#</th>
+                  <th>সদস্য</th>
+                  <th className="num">সকাল</th>
+                  <th className="num">দুপুর</th>
+                  <th className="num">রাত</th>
+                  <th className="num">Meal</th>
+                  <th className="num">Guest</th>
+                  <th className="num">Meal Count</th>
+                  <th className="num">Meal বিল</th>
+                  <th className="num">খরচ</th>
+                  <th className="num">মোট বিল</th>
+                  <th className="num">এই মাসে জমা</th>
+                  <th className="num">Balance</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((m, i) => (
                   <tr key={m.id}>
-                    <td>{i + 1}</td>
-                    <td style={{ fontWeight: 600 }}>{m.name}</td>
-                    <td>{m.breakfast}</td>
-                    <td>{m.lunch}</td>
-                    <td>{m.dinner}</td>
-                    <td>{m.total_meals}</td>
-                    <td>{m.guest_meals || 0}</td>
-                    <td>
+                    <td className="muted">{i + 1}</td>
+                    <td className="name">{m.name}</td>
+                    <td className="num">{num(m.breakfast)}</td>
+                    <td className="num">{num(m.lunch)}</td>
+                    <td className="num">{num(m.dinner)}</td>
+                    <td className="num">{num(m.total_meals)}</td>
+                    <td className="num">{num(m.guest_meals)}</td>
+                    <td className="num">
                       {canEditMeals ? (
                         <select
+                          className="inline-select"
                           value={String(m.bill_count)}
                           onChange={e => {
                             const v = Number(e.target.value)
-                            handleOverrideMember(
+                            handleOverride(
                               v === m.auto_count
                                 ? { member_id: m.id, month, year, clear: true }
                                 : { member_id: m.id, month, year, meals: v }
                             )
                           }}
-                          style={{ fontSize: 12, padding: '2px 4px', maxWidth: 90 }}
                           title="Meal count"
+                          aria-label={`${m.name} meal count`}
                         >
-                          {[...new Set([...overrideOptions, String(m.bill_count)])].filter(v => v !== '').map(v => (
-                            <option key={v} value={v}>{v}{v === String(m.auto_count) ? ' (auto)' : ''}</option>
+                          {countOptions(m.bill_count).map(v => (
+                            <option key={v} value={v}>{v}</option>
                           ))}
                         </select>
                       ) : (
-                        <span>{m.bill_count}</span>
+                        <span className="strong">{num(m.bill_count)}</span>
                       )}
                     </td>
-                    <td>৳{m.meal_bill.toLocaleString()}</td>
-                    <td>৳{m.add_expense_share.toLocaleString()}</td>
-                    <td style={{ fontWeight: 700, color: 'var(--primary)' }}>৳{m.bill.toLocaleString()}</td>
-                    <td style={{ fontWeight: 600 }}>৳{m.monthDeposit.toLocaleString()}</td>
-                    <td>
-                      {balance > 0 ? (
-                        <span className="badge badge-success">+৳{balance.toLocaleString()} (ফেরত)</span>
-                      ) : balance < 0 ? (
-                        <span className="badge badge-danger">৳{Math.abs(balance).toLocaleString()} দেবে</span>
-                      ) : (
-                        <span className="badge badge-info">সমতা</span>
-                      )}
-                    </td>
+                    <td className="num">{money(m.meal_bill)}</td>
+                    <td className="num">{money(m.add_expense_share)}</td>
+                    <td className="num strong text-accent">{money(m.bill)}</td>
+                    <td className="num strong">{money(m.monthDeposit)}</td>
+                    <td className="num"><BalanceBadge value={m.allTimeBalance} /></td>
                   </tr>
-                )
-              })}
-            </tbody>
-            <tfoot>
-              <tr style={{ fontWeight: 700 }}>
-                <td colSpan="5" style={{ textAlign: 'right' }}>মোট</td>
-                <td>{report.totalMeals}</td>
-                <td>{report.memberBills.reduce((s, m) => s + (m.guest_meals || 0), 0)}</td>
-                <td>{report.totalBillCount}</td>
-                <td colSpan="2" />
-                <td style={{ color: 'var(--primary)' }}>৳{report.totalBills.toLocaleString()}</td>
-                <td>৳{report.totalMonthDeposit.toLocaleString()}</td>
-                <td>{(() => {
-                  const willGet = report.memberBills.filter(m => m.allTimeBalance > 0).reduce((s, m) => s + m.allTimeBalance, 0)
-                  const willGive = report.memberBills.filter(m => m.allTimeBalance < 0).reduce((s, m) => s - m.allTimeBalance, 0)
-                  const net = Math.abs(willGet - willGive)
-                  return willGive >= willGet ? (
-                    <span className="badge badge-danger">দিবে ৳{net.toLocaleString()}</span>
-                  ) : (
-                    <span className="badge badge-success">পাবে ৳{net.toLocaleString()}</span>
-                  )
-                })()}</td>
-              </tr>
-            </tfoot>
-          </table>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colSpan="5" style={{ textAlign: 'right' }}>মোট</td>
+                  <td className="num">{num(report.totalMeals)}</td>
+                  <td className="num">{num(totalGuest)}</td>
+                  <td className="num">{num(report.totalBillCount)}</td>
+                  <td className="num" />
+                  <td className="num" />
+                  <td className="num">{money(report.totalBills)}</td>
+                  <td className="num">{money(report.totalMonthDeposit)}</td>
+                  <td className="num">
+                    <span className="badge badge-muted">
+                      {willGive >= willGet ? 'দিবে ' : 'পাবে '}{money(Math.abs(willGet - willGive))}
+                    </span>
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </TableWrap>
         )}
       </div>
 
-      {report.expensesByCategory.length > 0 && (
-        <div className="card" style={{ marginTop: 20 }}>
-          <h3 style={{ marginBottom: 16 }}>খরচের ধরন</h3>
-          <table>
-            <thead>
-              <tr>
-                <th>Category</th>
-                <th>Amount</th>
-                <th>% of Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              {report.expensesByCategory.map(c => (
-                <tr key={c.category}>
-                  <td><span className="badge badge-info">{c.category}</span></td>
-                  <td style={{ fontWeight: 600 }}>৳{c.total}</td>
-                  <td>
-                    {report.totalExpense > 0 ? ((c.total / report.totalExpense) * 100).toFixed(1) : 0}%
-                  </td>
-                </tr>
+      <div className="card-grid">
+        <StatCard tone="green" icon={<IconScale size={19} />} label="সব মিলিয়ে পাবে" value={money(willGet)} />
+        <StatCard tone="red" icon={<IconScale size={19} />} label="সব মিলিয়ে দিবে" value={money(willGive)} />
+      </div>
+
+      {canEditMeals && (
+        <div className="card">
+          <div className="card-head">
+            <h3>Fixed Meal সেটিং</h3>
+            <span className="sub">সব সদস্যের জন্য ডিফল্ট</span>
+          </div>
+          <div className="toolbar">
+            <select
+              className="inline-select"
+              value={report.fixedMeals != null ? String(report.fixedMeals) : ''}
+              onChange={e => handleOverride(
+                e.target.value === ''
+                  ? { month, year, clear: true }
+                  : { month, year, meals: Number(e.target.value) }
+              )}
+              aria-label="Fixed meal"
+            >
+              <option value="">—</option>
+              {countOptions(report.fixedMeals || 0).filter(v => v !== '').map(v => (
+                <option key={v} value={v}>{v}</option>
               ))}
-            </tbody>
-          </table>
+            </select>
+            <span className="helper-text">খালি রাখলে প্রতিটি সদস্যের নিজস্ব meal অনুযায়ী হিসাব হবে।</span>
+          </div>
+        </div>
+      )}
+
+      {report.expensesByCategory.length > 0 && (
+        <div className="card">
+          <div className="card-head">
+            <h3>খরচের ধরন</h3>
+            <span className="sub">মোট {money(report.totalExpense)}</span>
+          </div>
+          <TableWrap>
+            <table>
+              <thead>
+                <tr>
+                  <th>ধরন</th>
+                  <th className="num">Amount</th>
+                  <th className="num">শতাংশ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {report.expensesByCategory.map(c => (
+                  <tr key={c.category}>
+                    <td className="name">{c.category}</td>
+                    <td className="num strong">{money(c.total)}</td>
+                    <td className="num muted">
+                      {report.totalExpense > 0 ? `${((c.total / report.totalExpense) * 100).toFixed(1)}%` : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </TableWrap>
         </div>
       )}
     </div>

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { loginUser, registerMess, setToken, setMessCode, getMessCode } from '../api'
+import { IconHome, IconKey } from '../components/ui'
 
 export default function Login({ onLogin }) {
   const [mode, setMode] = useState('login') // 'login' | 'register'
@@ -39,7 +40,7 @@ export default function Login({ onLogin }) {
           password: f.password,
         })
         if (res && res.token) {
-          setMsg(`\u2705 Your Mess Code: ${res.user.messCode}\nShare this code with your members so they can log in.`)
+          setMsg(`আপনার Mess Code: ${res.user.messCode}\nএই code সদস্যদের দিয়ে দিলে তারাও login করতে পারবে।`)
         }
       }
     } catch (err) {
@@ -58,15 +59,15 @@ export default function Login({ onLogin }) {
   return (
     <div className="login-wrap">
       <form className="login-card" onSubmit={handleSubmit}>
-        <div className="login-icon">{mode === 'login' ? '🔑' : '🏠'}</div>
+        <div className="login-icon">{mode === 'login' ? <IconKey size={26} /> : <IconHome size={26} />}</div>
         <h1>Mess Manager</h1>
         <p className="login-sub">
-          {mode === 'login' ? 'Mess accounting in one place' : 'Create a new mess'}
+          {mode === 'login' ? 'এক জায়গায় মেসের সব হিসাব' : 'নতুন মেস তৈরি করুন'}
         </p>
 
         {mode === 'register' && (
           <p className="helper-text" style={{ marginBottom: 16 }}>
-            The first person creating this mess with their ID becomes its <strong>Manager</strong>.
+            যে প্রথম এই mess তৈরি করবে সে-ই হবে এর <strong>Manager</strong>।
           </p>
         )}
 
@@ -77,7 +78,7 @@ export default function Login({ onLogin }) {
               type="text"
               value={f.mess_code}
               onChange={set('mess_code')}
-              placeholder="e.g. ABC123"
+              placeholder="যেমন ABC123"
               required
               autoCapitalize="characters"
             />
@@ -91,7 +92,7 @@ export default function Login({ onLogin }) {
               type="text"
               value={f.mess_name}
               onChange={set('mess_name')}
-              placeholder="e.g. Hostel Mess"
+              placeholder="যেমন Hostel Mess"
               required
             />
           </div>
@@ -99,12 +100,12 @@ export default function Login({ onLogin }) {
 
         {mode === 'register' && (
           <div className="form-group">
-            <label>Your Name</label>
+            <label>আপনার নাম</label>
             <input
               type="text"
               value={f.name}
               onChange={set('name')}
-              placeholder="Enter your name"
+              placeholder="আপনার নাম লিখুন"
               required
             />
           </div>
@@ -116,7 +117,7 @@ export default function Login({ onLogin }) {
             type="text"
             value={f.username}
             onChange={set('username')}
-            placeholder="e.g. 01712345678"
+            placeholder="যেমন 01712345678"
             required
             minLength={4}
             autoComplete="username"
@@ -129,7 +130,7 @@ export default function Login({ onLogin }) {
             type="password"
             value={f.password}
             onChange={set('password')}
-            placeholder="At least 4 characters"
+            placeholder="কমপক্ষে ৪ অক্ষর"
             required
             minLength={4}
             autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
@@ -138,7 +139,7 @@ export default function Login({ onLogin }) {
 
         {mode === 'login' && (
           <p className="helper-text">
-            New member? Join by logging in with the Mess Code given by your manager.
+            নতুন সদস্য? Manager-এর দেওয়া Mess Code দিয়ে login করুন।
           </p>
         )}
 
@@ -146,16 +147,16 @@ export default function Login({ onLogin }) {
         {error && <div className="login-error">{error}</div>}
 
         <button className="btn btn-primary login-btn" type="submit" disabled={loading}>
-          {loading ? 'Please wait...' : mode === 'login' ? 'Log In' : 'Create Mess'}
+          {loading ? 'প্রসেস হচ্ছে...' : mode === 'login' ? 'লগইন' : 'মেস তৈরি করুন'}
         </button>
 
         {mode === 'login' ? (
           <p className="auth-switch">
-            No mess yet? <button type="button" onClick={() => switchMode('register')}>Create a New Mess</button>
+            এখনো কোনো mess নেই? <button type="button" onClick={() => switchMode('register')}>নতুন Mess তৈরি করুন</button>
           </p>
         ) : (
           <p className="auth-switch">
-            Already have a mess? <button type="button" onClick={() => switchMode('login')}>Log In</button>
+            আগে থেকেই mess আছে? <button type="button" onClick={() => switchMode('login')}>লগইন</button>
           </p>
         )}
       </form>

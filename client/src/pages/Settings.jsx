@@ -1,5 +1,8 @@
 import { useState } from 'react'
 import { changePassword, changeNumber, resetPasswordByUsername } from '../api'
+import {
+  PageHeader, TableWrap, IconCheck, IconAlert, IconSettings, IconKey,
+} from '../components/ui'
 
 const ROLE_LABEL = {
   admin: 'মেস ম্যানেজার',
@@ -10,6 +13,7 @@ const ROLE_LABEL = {
 
 export default function Settings({ user, onRefreshUser }) {
   const canChangeNumber = !!user.memberId
+  const isManager = ['admin', 'manager'].includes(user.role)
 
   const [pw, setPw] = useState({ current: '', next: '', confirm: '' })
   const [phone, setPhone] = useState('')
@@ -51,9 +55,9 @@ export default function Settings({ user, onRefreshUser }) {
   async function copyCode() {
     try {
       await navigator.clipboard.writeText(user.messCode)
-      setMsg('Mess Code কপি হয়েছে ✅')
+      setMsg('Mess Code কপি হয়েছে')
     } catch {
-      setErr('কপি করা যায়নি - নিজে মনে করে নিয়ে দেখান')
+      setErr('কপি করা যায়নি — নিজে মনে করে নিয়ে দেখান')
     }
   }
 
@@ -65,7 +69,7 @@ export default function Settings({ user, onRefreshUser }) {
     if (uPw.length < 4) return setErr('নতুন password কমপক্ষে ৪ অক্ষরের হতে হবে')
     const res = await resetPasswordByUsername(uName.trim(), uPw)
     if (res && res.success) {
-      setMsg(`✅ "${res.username}" user-এর password পরিবর্তন হয়েছে।`)
+      setMsg(`"${res.username}" user-এর password পরিবর্তন হয়েছে।`)
       setUName('')
       setUPw('')
     } else {
@@ -74,54 +78,59 @@ export default function Settings({ user, onRefreshUser }) {
   }
 
   return (
-    <div>
-      <div className="page-header">
-        <h2>Settings</h2>
-      </div>
+    <div className="page">
+      <PageHeader title="নিজের অ্যাকাউন্ট" subtitle={user.name} />
 
-      <div className="card" style={{ marginBottom: 20 }}>
-        <table>
-          <tbody>
-            <tr><th style={{ width: 140 }}>নাম</th><td>{user.name}</td></tr>
-            <tr><th>User ID</th><td>{user.username}</td></tr>
-            {user.phone ? <tr><th>নম্বর</th><td>{user.phone}</td></tr> : null}
-            <tr><th>ভূমিকা</th><td><span className="badge badge-info">{ROLE_LABEL[user.role] || user.role}</span></td></tr>
-            {user.messName ? <tr><th>মেস</th><td>{user.messName}</td></tr> : null}
-          </tbody>
-        </table>
+      {msg && <div className="alert alert-success"><IconCheck size={17} /><span>{msg}</span></div>}
+      {err && <div className="alert alert-error"><IconAlert size={17} /><span>{err}</span></div>}
+
+      <div className="card">
+        <div className="card-head">
+          <h3>আমার তথ্য</h3>
+        </div>
+        <TableWrap>
+          <table>
+            <tbody>
+              <tr><th style={{ width: 150 }}>নাম</th><td className="name">{user.name}</td></tr>
+              <tr><th>User ID</th><td>{user.username}</td></tr>
+              {user.phone ? <tr><th>নম্বর</th><td>{user.phone}</td></tr> : null}
+              <tr><th>ভূমিকা</th><td><span className="badge badge-info">{ROLE_LABEL[user.role] || user.role}</span></td></tr>
+              {user.messName ? <tr><th>মেস</th><td>{user.messName}</td></tr> : null}
+            </tbody>
+          </table>
+        </TableWrap>
       </div>
 
       {user.messCode && (
-        <div className="card" style={{ marginBottom: 20 }}>
-          <h3 style={{ marginBottom: 4 }}>আপনার Mess Code</h3>
-          <p className="helper-text" style={{ marginBottom: 12 }}>
-            সদস্যরা এই code দিয়ে app-এ "মেসে যোগ দিন" করবে।
-          </p>
-          <div className="mess-code-box">{user.messCode}</div>
-          <button className="btn btn-primary btn-sm" type="button" onClick={copyCode} style={{ marginTop: 12 }}>
-            📋 কপি করুন
-          </button>
+        <div className="card">
+          <div className="card-head">
+            <h3>আপনার Mess Code</h3>
+            <span className="sub">সদস্যরা এই code দিয়ে app-এ ঢুকবে</span>
+          </div>
+          <div className="mess-code-row">
+            <div className="mess-code-box">{user.messCode}</div>
+            <button className="btn btn-outline" type="button" onClick={copyCode}>
+              <IconKey size={16} /> কপি করুন
+            </button>
+          </div>
         </div>
       )}
 
-      {msg && <div className="login-success" style={{ marginBottom: 16 }}>{msg}</div>}
-      {err && <div className="login-error" style={{ marginBottom: 16 }}>{err}</div>}
-
-      <div className="card" style={{ marginBottom: 20 }}>
-        <h3 style={{ marginBottom: 16 }}>Password পরিবর্তন</h3>
+      <div className="card">
+        <div className="card-head"><h3>Password পরিবর্তন</h3></div>
         <form onSubmit={handlePassword}>
           <div className="form-group">
-            <label>বর্তমান Password</label>
-            <input type="password" value={pw.current} onChange={e => setPw({ ...pw, current: e.target.value })} required autoComplete="current-password" />
+            <label htmlFor="s-cur">বর্তমান Password</label>
+            <input id="s-cur" type="password" value={pw.current} onChange={e => setPw({ ...pw, current: e.target.value })} required autoComplete="current-password" />
           </div>
           <div className="form-row">
             <div className="form-group">
-              <label>নতুন Password</label>
-              <input type="password" value={pw.next} onChange={e => setPw({ ...pw, next: e.target.value })} required autoComplete="new-password" />
+              <label htmlFor="s-new">নতুন Password</label>
+              <input id="s-new" type="password" value={pw.next} onChange={e => setPw({ ...pw, next: e.target.value })} required autoComplete="new-password" />
             </div>
             <div className="form-group">
-              <label>আবার নতুন Password</label>
-              <input type="password" value={pw.confirm} onChange={e => setPw({ ...pw, confirm: e.target.value })} required autoComplete="new-password" />
+              <label htmlFor="s-cnf">আবার নতুন Password</label>
+              <input id="s-cnf" type="password" value={pw.confirm} onChange={e => setPw({ ...pw, confirm: e.target.value })} required autoComplete="new-password" />
             </div>
           </div>
           <button className="btn btn-primary" type="submit">Password বদলান</button>
@@ -130,36 +139,40 @@ export default function Settings({ user, onRefreshUser }) {
 
       {canChangeNumber && (
         <div className="card">
-          <h3 style={{ marginBottom: 4 }}>User ID (নম্বর) পরিবর্তন</h3>
-          <p className="helper-text" style={{ marginBottom: 16 }}>
-            নতুন User ID-ই আপনার login নম্বর।
-          </p>
+          <div className="card-head">
+            <h3>User ID পরিবর্তন</h3>
+            <span className="sub">নতুন User ID-ই আপনার login</span>
+          </div>
           <form onSubmit={handleNumber}>
             <div className="form-group">
-              <label>নতুন নম্বর</label>
-              <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="যেমন: 01712345678" />
+              <label htmlFor="s-phone">নতুন নম্বর</label>
+              <input id="s-phone" type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="01712345678" />
             </div>
             <button className="btn btn-success" type="submit">নম্বর বদলান</button>
           </form>
         </div>
       )}
 
-      {['admin', 'manager'].includes(user.role) && (
-        <div className="card" style={{ marginTop: 20 }}>
-          <h3 style={{ marginBottom: 4 }}>Reset someone&apos;s password (Manager)</h3>
-          <p className="helper-text" style={{ marginBottom: 16 }}>
-            কেউ password ভুলে গেলে User ID দিয়ে নতুন password দিন।
-          </p>
-          <form onSubmit={handleResetUser} className="form-row">
-            <div className="form-group">
-              <label>User ID</label>
-              <input type="text" value={uName} onChange={e => setUName(e.target.value)} placeholder="যেমন: 01712345678" />
+      {isManager && (
+        <div className="card">
+          <div className="card-head">
+            <h3>কারও Password Reset</h3>
+            <span className="sub">User ID দিয়ে নতুন password দিন</span>
+          </div>
+          <form onSubmit={handleResetUser}>
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="s-uname">User ID</label>
+                <input id="s-uname" type="text" value={uName} onChange={e => setUName(e.target.value)} placeholder="01712345678" />
+              </div>
+              <div className="form-group">
+                <label htmlFor="s-upw">নতুন Password</label>
+                <input id="s-upw" type="text" value={uPw} onChange={e => setUPw(e.target.value)} placeholder="কমপক্ষে ৪ অক্ষর" />
+              </div>
             </div>
-            <div className="form-group">
-              <label>নতুন Password</label>
-              <input type="text" value={uPw} onChange={e => setUPw(e.target.value)} placeholder="কমপক্ষে ৪ অক্ষর" />
-            </div>
-            <button className="btn btn-danger" type="submit" style={{ alignSelf: 'flex-end' }}>Password Reset</button>
+            <button className="btn btn-primary" type="submit">
+              <IconKey size={16} /> Password Reset
+            </button>
           </form>
         </div>
       )}

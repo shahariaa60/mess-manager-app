@@ -1,135 +1,136 @@
 import { useState, useEffect } from 'react'
 import { fetchExpenses, addExpense, deleteExpense } from '../api'
-import { toLocalDate } from '../utils'
+import { toLocalDate, num } from '../utils'
+import {
+  PageHeader, StatCard, EmptyState, TableWrap, MonthPicker,
+  IconExpenses, IconPlus, IconTrash, IconInbox, money, MONTHS_BN,
+} from '../components/ui'
 
 const CATEGORIES = ['বিদ্যুৎ', 'খালার বিল', 'ইয়ানত', 'ফ্রিজ ভারা', 'পেপার', 'গুড়া', 'WiFi বিল', 'অন্যান্য']
 
 function Expenses() {
+  const now = new Date()
   const [expenses, setExpenses] = useState([])
-  const [form, setForm] = useState({
-    category: 'বিদ্যুৎ',
-    amount: '',
-    description: '',
-    date: toLocalDate(),
-  })
-  const [loading, setLoading] = useState(false)
+  const [month, setMonth] = useState(String(now.getMonth() + 1).padStart(2, '0'))
+  const [year, setYear] = useState(String(now.getFullYear()))
+  const [form, setForm] = useState({ category: CATEGORIES[0], amount: '', description: '', date: toLocalDate() })
+  const [saving, setSaving] = useState(false)
+  const label = `${MONTHS_BN[parseInt(month) - 1]} ${year}`
 
   const loadExpenses = async () => {
-    const data = await fetchExpenses()
-    setExpenses(data)
+    setExpenses(await fetchExpenses({ month, year }))
   }
 
-  useEffect(() => { loadExpenses() }, [])
+  useEffect(() => { loadExpenses() }, [month, year])
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async e => {
     e.preventDefault()
     if (!form.amount) return alert('Amount is required')
-    setLoading(true)
+    setSaving(true)
     await addExpense({ ...form, amount: parseFloat(form.amount) })
-    setForm({ category: 'বিদ্যুৎ', amount: '', description: '', date: toLocalDate() })
+    setForm({ category: CATEGORIES[0], amount: '', description: '', date: toLocalDate() })
     await loadExpenses()
-    setLoading(false)
+    setSaving(false)
   }
 
-  const handleDelete = async (id) => {
-    if (!confirm('Delete this expense?')) return
+  const handleDelete = async id => {
+    if (!confirm('এই খরচটি মুছে ফেলবেন?')) return
     await deleteExpense(id)
     await loadExpenses()
   }
 
-  const totalAmount = expenses.reduce((sum, e) => sum + e.amount, 0)
+  const total = expenses.reduce((s, e) => s + Number(e.amount || 0), 0)
+  const max = expenses.reduce((m, e) => Math.max(m, Number(e.amount || 0)), 0)
 
   return (
-    <div>
-      <div className="page-header">
-        <h2>Expenses</h2>
+    <div className="page">
+      <PageHeader
+        title="খরচ"
+        subtitle={label}
+        actions={<MonthPicker month={month} year={year} onMonth={setMonth} onYear={setYear} />}
+      />
+
+      <div className="card-grid">
+        <StatCard tone="slate" icon={<IconExpenses size={19} />} label="মোট খরচ" value={money(total)} />
+        <StatCard tone="slate" icon={<IconExpenses size={19} />} label="এন্ট্রি" value={num(expenses.length)} />
+        <StatCard tone="yellow" icon={<IconExpenses size={19} />} label="সবচেয়ে বেশি" value={money(max)} />
       </div>
 
-      <div className="card" style={{ marginBottom: 20 }}>
-        <h3 style={{ marginBottom: 16 }}>Add Expense</h3>
+      <div className="card">
+        <div className="card-head"><h3>খরচ যোগ করুন</h3></div>
         <form onSubmit={handleSubmit}>
           <div className="form-row">
             <div className="form-group">
-              <label>Category</label>
-              <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}>
+              <label htmlFor="e-cat">ধরন</label>
+              <select id="e-cat" value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}>
                 {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
             </div>
             <div className="form-group">
-              <label>Amount (৳)</label>
-              <input
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder="Enter amount"
-                value={form.amount}
-                onChange={e => setForm({ ...form, amount: e.target.value })}
-                required
-              />
-            </div>
-          </div>
-          <div className="form-row">
-            <div className="form-group">
-              <label>Date</label>
-              <input
-                type="date"
-                value={form.date}
-                onChange={e => setForm({ ...form, date: e.target.value })}
-              />
+              <label htmlFor="e-amt">Amount</label>
+              <input id="e-amt" type="number" step="0.01" placeholder="0" value={form.amount} onChange={e => setForm({ ...form, amount: e.target.value })} required />
             </div>
             <div className="form-group">
-              <label>Description (optional)</label>
-              <input
-                type="text"
-                placeholder="e.g. local market"
-                value={form.description}
-                onChange={e => setForm({ ...form, description: e.target.value })}
-              />
+              <label htmlFor="e-date">Date</label>
+              <input id="e-date" type="date" value={form.date} onChange={e => setForm({ ...form, date: e.target.value })} />
+            </div>
+            <div className="form-group">
+              <label htmlFor="e-desc">বিবরণ</label>
+              <input id="e-desc" type="text" placeholder="ঐচ্ছিক" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} />
             </div>
           </div>
-          <button type="submit" className="btn btn-primary" disabled={loading}>
-            {loading ? 'Adding...' : '➕ Add Expense'}
+          <button type="submit" className="btn btn-primary" disabled={saving}>
+            <IconPlus size={16} />
+            {saving ? 'যোগ হচ্ছে...' : 'খরচ যোগ করুন'}
           </button>
         </form>
       </div>
 
       <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <h3>All Expenses</h3>
-          <span className="badge badge-warning">Total: ৳{totalAmount.toLocaleString()}</span>
+        <div className="card-head">
+          <h3>খরচের তালিকা</h3>
+          <span className="sub">{label} · মোট {money(total)}</span>
         </div>
         {expenses.length === 0 ? (
-          <div className="empty-state">
-            <div className="icon">💰</div>
-            <p>No expenses recorded yet</p>
-          </div>
+          <EmptyState icon={<IconInbox size={22} />} title="এই মাসে কোনো খরচ লেখা হয়নি" />
         ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Category</th>
-                <th>Description</th>
-                <th>Amount</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {expenses.map(exp => (
-                <tr key={exp.id}>
-                  <td>{exp.date}</td>
-                  <td><span className="badge badge-info">{exp.category}</span></td>
-                  <td>{exp.description || '-'}</td>
-                  <td style={{ fontWeight: 600 }}>৳{Number(exp.amount).toLocaleString()}</td>
-                  <td>
-                    <button className="btn btn-danger btn-sm" onClick={() => handleDelete(exp.id)}>
-                      Delete
-                    </button>
-                  </td>
+          <TableWrap>
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>ধরন</th>
+                  <th>বিবরণ</th>
+                  <th className="num">Amount</th>
+                  <th />
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {expenses.map(exp => (
+                  <tr key={exp.id}>
+                    <td className="muted">{exp.date}</td>
+                    <td><span className="badge badge-info">{exp.category}</span></td>
+                    <td className="muted">{exp.description || '—'}</td>
+                    <td className="num strong">{money(exp.amount)}</td>
+                    <td>
+                      <div className="row-actions">
+                        <button className="btn btn-ghost btn-icon" onClick={() => handleDelete(exp.id)} aria-label="Delete">
+                          <IconTrash size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colSpan="3" style={{ textAlign: 'right' }}>মোট</td>
+                  <td className="num">{money(total)}</td>
+                  <td />
+                </tr>
+              </tfoot>
+            </table>
+          </TableWrap>
         )}
       </div>
     </div>

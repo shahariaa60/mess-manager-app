@@ -1,11 +1,9 @@
 import { useEffect, useState } from 'react'
 import { fetchMyMeals } from '../api'
-
-const MONTHS = ['জানুয়ারি', 'ফেব্রুয়ারি', 'মার্চ', 'এপ্রিল', 'মে', 'জুন', 'জুলাই', 'আগস্ট', 'সেপ্টেম্বর', 'অক্টোবর', 'নভেম্বর', 'ডিসেম্বর']
-
-function fmt(n) {
-  return (n == null ? 0 : n).toLocaleString('bn-BD')
-}
+import {
+  PageHeader, MonthPicker, StatCard, EmptyState,
+  IconMeals, IconCheck, IconMembers, IconInbox, IconAlert, num, MONTHS_BN,
+} from '../components/ui'
 
 export default function MyMeals() {
   const now = new Date()
@@ -23,60 +21,39 @@ export default function MyMeals() {
   }, [month, year])
 
   const rows = data || { total_meals: 0, breakfast: 0, lunch: 0, dinner: 0, guest: 0 }
+  const label = `${MONTHS_BN[parseInt(month) - 1]} ${year}`
 
   return (
-    <div>
-      <div className="page-header">
-        <h2>খাবার</h2>
-      </div>
+    <div className="page">
+      <PageHeader
+        title="আমার খাবার"
+        subtitle={label}
+        actions={<MonthPicker month={month} year={year} onMonth={setMonth} onYear={setYear} />}
+      />
 
-      <div className="month-selector" style={{ marginBottom: 20 }}>
-        <select value={month} onChange={e => setMonth(e.target.value)}>
-          {MONTHS.map((m, i) => <option key={i} value={String(i + 1).padStart(2, '0')}>{m}</option>)}
-        </select>
-        <select value={year} onChange={e => setYear(e.target.value)}>
-          {[now.getFullYear(), now.getFullYear() - 1].map(y => <option key={y} value={y}>{y}</option>)}
-        </select>
-      </div>
-
-      {error && <div className="login-error" style={{ marginBottom: 16 }}>{error}</div>}
+      {error && <div className="alert alert-error"><IconAlert size={17} /><span>{error}</span></div>}
 
       <div className="card-grid">
-        <div className="stat-card">
-          <div className="stat-icon blue">🥣</div>
-          <div className="stat-info">
-            <h3>{fmt(rows.breakfast)}</h3>
-            <p>নাস্তা</p>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon green">🍛</div>
-          <div className="stat-info">
-            <h3>{fmt(rows.lunch)}</h3>
-            <p>দুপুর</p>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon yellow">🍽️</div>
-          <div className="stat-info">
-            <h3>{fmt(rows.dinner)}</h3>
-            <p>রাত</p>
-          </div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-icon red">👤</div>
-          <div className="stat-info">
-            <h3>{fmt(rows.guest)}</h3>
-            <p>অতিথি</p>
-          </div>
-        </div>
+        <StatCard tone="slate" icon={<IconMeals size={19} />} label="নাস্তা" value={num(rows.breakfast)} />
+        <StatCard tone="slate" icon={<IconMeals size={19} />} label="দুপুর" value={num(rows.lunch)} />
+        <StatCard tone="slate" icon={<IconMeals size={19} />} label="রাত" value={num(rows.dinner)} />
+        <StatCard tone="yellow" icon={<IconMembers size={19} />} label="অতিথি" value={num(rows.guest)} />
       </div>
 
       <div className="card">
-        <h3 style={{ marginBottom: 12 }}>সর্বমোট</h3>
-        <p style={{ fontSize: 32, fontWeight: 700, color: 'var(--primary)' }}>
-          {fmt(rows.total_meals)} <span style={{ fontSize: 16, fontWeight: 400, color: 'var(--text-light)' }}>টি খাবার</span>
-        </p>
+        <div className="card-head">
+          <h3>সর্বমোট</h3>
+          <span className="sub">{label}</span>
+        </div>
+        {rows.total_meals > 0 ? (
+          <div className="day-meals-total" style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <IconCheck size={18} />
+            <span style={{ fontSize: 26, fontWeight: 700 }}>{num(rows.total_meals)}</span>
+            <span className="muted">টি খাবার</span>
+          </div>
+        ) : (
+          <EmptyState icon={<IconInbox size={22} />} title="এই মাসে কোনো খাবার নেই" />
+        )}
       </div>
     </div>
   )

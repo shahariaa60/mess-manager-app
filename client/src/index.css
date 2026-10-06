@@ -882,20 +882,112 @@ td.name {
   justify-content: center;
   min-height: 100vh;
   padding: 20px;
+  background:
+    radial-gradient(680px 360px at 50% -80px, rgba(37, 99, 235, 0.13), transparent 70%),
+    linear-gradient(180deg, #fbfcfe 0%, #f1f4f8 100%);
 }
 
 .login-card {
   background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  box-shadow: var(--shadow-pop);
-  padding: 34px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 22px;
+  box-shadow: 0 24px 48px -22px rgba(15, 23, 42, 0.24);
+  padding: 32px 30px 26px;
   width: 100%;
   max-width: 396px;
 }
 
-.login-card h1 { font-size: 20px; margin-bottom: 4px; }
+.login-head {
+  text-align: center;
+  margin-bottom: 22px;
+}
 
+.login-logo {
+  display: inline-grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--accent), #4f46e5);
+  color: #fff;
+  margin-bottom: 13px;
+  box-shadow: 0 10px 22px -8px rgba(37, 99, 235, 0.6);
+}
+
+.login-card h1 {
+  font-size: 21px;
+  font-weight: 750;
+  letter-spacing: -0.02em;
+}
+
+.login-tagline {
+  color: var(--muted);
+  font-size: 13.5px;
+  margin-top: 5px;
+}
+
+/* segmented mode tabs */
+.login-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  background: #eef1f6;
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 18px;
+}
+
+.login-tabs button {
+  border: none;
+  background: transparent;
+  padding: 9px 4px;
+  border-radius: 9px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-mid);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+}
+
+.login-tabs button.active {
+  background: #fff;
+  color: var(--text);
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.1);
+}
+
+.login-note {
+  font-size: 12.5px;
+  color: var(--text-mid);
+  background: var(--accent-soft);
+  border: 1px solid #dbe6ff;
+  border-radius: 10px;
+  padding: 9px 12px;
+  margin-bottom: 16px;
+  line-height: 1.5;
+}
+
+.login-note strong { color: var(--accent-dark); }
+
+.login-card .login-btn {
+  width: 100%;
+  margin-top: 8px;
+  padding: 12px 16px;
+  font-size: 15px;
+  border-radius: 11px;
+  box-shadow: 0 10px 22px -10px rgba(37, 99, 235, 0.65);
+}
+
+.login-hint {
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-top: 16px;
+  text-align: center;
+}
+
+.login-hint strong { color: var(--text-mid); }
+
+/* kept for ErrorBoundary fallback screen */
 .login-icon {
   display: inline-grid;
   place-items: center;
@@ -908,8 +1000,6 @@ td.name {
 }
 
 .login-sub { color: var(--muted); font-size: 14px; margin-bottom: 22px; }
-.login-card .login-btn { width: 100%; margin-top: 6px; }
-.login-hint { font-size: 12.5px; color: var(--muted); margin-top: 16px; text-align: center; }
 
 /* ========== RESPONSIVE ========== */
 
@@ -994,29 +1084,6 @@ td.name {
   .btn-group { width: 100%; }
   .month-picker select { flex: 1; min-width: 0; }
   .btn-group .btn { flex: 1; }
-}
-
-/* ========== AUTH SWITCH (login/register) ========== */
-
-.auth-switch {
-  margin-top: 16px;
-  text-align: center;
-  font-size: 13.5px;
-  color: var(--muted);
-}
-
-.auth-switch button {
-  background: none;
-  border: none;
-  padding: 0;
-  font-size: inherit;
-  font-weight: 700;
-  color: var(--accent);
-  cursor: pointer;
-}
-
-.auth-switch button:hover {
-  text-decoration: underline;
 }
 
 /* ========== MESS CODE DISPLAY ========== */

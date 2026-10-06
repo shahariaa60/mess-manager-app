@@ -42,7 +42,7 @@ export default function Login({ onLogin }) {
           password: f.password,
         })
         if (res && res.token) {
-          setMsg(`আপনার Mess Code: ${res.user.messCode}\nএই code সদস্যদের দিয়ে দিলে তারাও login করতে পারবে।`)
+          setMsg(`আপনার Mess Code:\n${res.user.messCode}\nএই code সদস্যদের দিয়ে দিলে তারাও login করতে পারবে।`)
         }
       }
     } catch (err) {
@@ -60,138 +60,122 @@ export default function Login({ onLogin }) {
 
   return (
     <div className="login-wrap">
-      <form className="login-card" onSubmit={handleSubmit}>
-        <div className="login-icon">{mode === 'register' ? <IconHome size={26} /> : <IconKey size={26} />}</div>
-        <h1>Mess Manager</h1>
-        <p className="login-sub">
-          {mode === 'login' && 'এক জায়গায় মেসের সব হিসাব'}
-          {mode === 'register' && 'নতুন মেস তৈরি করুন'}
-          {mode === 'admin' && 'সারা সাইটের অ্যাডমিন লগইন'}
-        </p>
-
-        {mode === 'register' && (
-          <p className="helper-text" style={{ marginBottom: 16 }}>
-            যে প্রথম এই mess তৈরি করবে সে-ই হবে এর <strong>Manager</strong>।
-          </p>
-        )}
-
-        {mode === 'admin' && (
-          <p className="helper-text" style={{ marginBottom: 16 }}>
-            শুধু admin login-এ সব মেসের list, নাম/Code ও Manager-এর user id/password বদলানো এবং যেকোনো mess-এর
-            হিসাব দেখা যায়।
-          </p>
-        )}
-
-        {mode === 'login' && (
-          <div className="form-group">
-            <label>Mess Code</label>
-            <input
-              type="text"
-              value={f.mess_code}
-              onChange={set('mess_code')}
-              placeholder="যেমন ABC123"
-              required
-              autoCapitalize="characters"
-            />
-          </div>
-        )}
-
-        {mode === 'register' && (
-          <div className="form-group">
-            <label>Mess Name</label>
-            <input
-              type="text"
-              value={f.mess_name}
-              onChange={set('mess_name')}
-              placeholder="যেমন Hostel Mess"
-              required
-            />
-          </div>
-        )}
-
-        {mode === 'register' && (
-          <div className="form-group">
-            <label>আপনার নাম</label>
-            <input
-              type="text"
-              value={f.name}
-              onChange={set('name')}
-              placeholder="আপনার নাম লিখুন"
-              required
-            />
-          </div>
-        )}
-
-        <div className="form-group">
-          <label>User ID</label>
-          <input
-            type="text"
-            value={f.username}
-            onChange={set('username')}
-            placeholder="যেমন 01712345678"
-            required
-            minLength={4}
-            autoComplete="username"
-          />
+      <div className="login-card">
+        <div className="login-head">
+          <span className="login-logo"><IconKey size={20} /></span>
+          <h1>Mess Manager</h1>
+          <p className="login-tagline">এক জায়গায় মেসের সব হিসাব</p>
         </div>
 
-        <div className="form-group">
-          <label>Password</label>
-          <input
-            type="password"
-            value={f.password}
-            onChange={set('password')}
-            placeholder="কমপক্ষে ৪ অক্ষর"
-            required
-            minLength={4}
-            autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
-          />
+        <div className="login-tabs">
+          <button type="button" className={mode === 'login' ? 'active' : ''} onClick={() => switchMode('login')}>
+            মেস লগইন
+          </button>
+          <button type="button" className={mode === 'register' ? 'active' : ''} onClick={() => switchMode('register')}>
+            নতুন মেস
+          </button>
+          <button type="button" className={mode === 'admin' ? 'active' : ''} onClick={() => switchMode('admin')}>
+            অ্যাডমিন
+          </button>
         </div>
 
-        {mode === 'login' && (
-          <p className="helper-text">
-            নতুন সদস্য? Manager-এর দেওয়া Mess Code দিয়ে login করুন।
-          </p>
-        )}
+        <form onSubmit={handleSubmit}>
+          {mode === 'admin' && (
+            <p className="login-note">
+              সারা সাইটের অ্যাডমিন লগইন। সব মেসের তালিকা ও হিসাব দেখা যাবে।
+            </p>
+          )}
 
-        {msg && <div className="login-success" style={{ whiteSpace: 'pre-line' }}>{msg}</div>}
-        {error && <div className="login-error">{error}</div>}
+          {mode === 'register' && (
+            <p className="login-note">
+              যে প্রথম এই mess তৈরি করবে সে-ই হবে এর <strong>Manager</strong>।
+            </p>
+          )}
 
-        <button className="btn btn-primary login-btn" type="submit" disabled={loading}>
-          {loading
-            ? 'প্রসেস হচ্ছে...'
-            : mode === 'login' ? 'লগইন' : mode === 'register' ? 'মেস তৈরি করুন' : 'অ্যাডমিন লগইন'}
-        </button>
+          {mode === 'login' && (
+            <div className="form-group">
+              <label>Mess Code</label>
+              <input
+                type="text"
+                value={f.mess_code}
+                onChange={set('mess_code')}
+                placeholder="যেমন ABC123"
+                required
+                autoCapitalize="characters"
+              />
+            </div>
+          )}
 
-        {mode === 'login' ? (
-          <>
-            <p className="auth-switch">
-              এখনো কোনো mess নেই? <button type="button" onClick={() => switchMode('register')}>নতুন Mess তৈরি করুন</button>
+          {mode === 'register' && (
+            <div className="form-group">
+              <label>Mess Name</label>
+              <input
+                type="text"
+                value={f.mess_name}
+                onChange={set('mess_name')}
+                placeholder="যেমন Hostel Mess"
+                required
+              />
+            </div>
+          )}
+
+          {mode === 'register' && (
+            <div className="form-group">
+              <label>আপনার নাম</label>
+              <input
+                type="text"
+                value={f.name}
+                onChange={set('name')}
+                placeholder="আপনার নাম লিখুন"
+                required
+              />
+            </div>
+          )}
+
+          <div className="form-group">
+            <label>User ID</label>
+            <input
+              type="text"
+              value={f.username}
+              onChange={set('username')}
+              placeholder="যেমন 01712345678"
+              required
+              minLength={4}
+              autoComplete="username"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Password</label>
+            <input
+              type="password"
+              value={f.password}
+              onChange={set('password')}
+              placeholder="কমপক্ষে ৪ অক্ষর"
+              required
+              minLength={4}
+              autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+            />
+          </div>
+
+          {msg && <div className="login-success" style={{ whiteSpace: 'pre-line' }}>{msg}</div>}
+          {error && <div className="login-error">{error}</div>}
+
+          <button className="btn btn-primary login-btn" type="submit" disabled={loading}>
+            {loading
+              ? 'প্রসেস হচ্ছে...'
+              : mode === 'login' ? 'লগইন করুন'
+                : mode === 'register' ? 'মেস তৈরি করুন'
+                  : 'অ্যাডমিন লগইন'}
+          </button>
+
+          {mode === 'login' && (
+            <p className="login-hint">
+              নতুন সদস্য? Manager-এর দেওয়া <strong>Mess Code</strong> দিয়ে লগইন করুন।
             </p>
-            <p className="auth-switch">
-              সারা সাইটের admin? <button type="button" onClick={() => switchMode('admin')}>অ্যাডমিন লগইন</button>
-            </p>
-          </>
-        ) : mode === 'register' ? (
-          <>
-            <p className="auth-switch">
-              আগে থেকেই mess আছে? <button type="button" onClick={() => switchMode('login')}>লগইন</button>
-            </p>
-            <p className="auth-switch">
-              সারা সাইটের admin? <button type="button" onClick={() => switchMode('admin')}>অ্যাডমিন লগইন</button>
-            </p>
-          </>
-        ) : (
-          <>
-            <p className="auth-switch">
-              মেস সদস্য? <button type="button" onClick={() => switchMode('login')}>মেস লগইন</button>
-            </p>
-            <p className="auth-switch">
-              নতুন মেস? <button type="button" onClick={() => switchMode('register')}>নতুন Mess তৈরি করুন</button>
-            </p>
-          </>
-        )}
-      </form>
+          )}
+        </form>
+      </div>
     </div>
   )
 }

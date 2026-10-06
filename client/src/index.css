@@ -1039,3 +1039,33 @@ td.name {
   gap: 10px;
   flex-wrap: wrap;
 }
+
+/* ========== SITE ADMIN (super admin) ========== */
+
+.super-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  background: var(--sidebar, #0f172a);
+  color: #e2e8f0;
+  font-size: 13px;
+}
+
+.super-bar strong {
+  color: #fff;
+}
+
+.super-bar button {
+  background: var(--accent, #2563eb);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+}

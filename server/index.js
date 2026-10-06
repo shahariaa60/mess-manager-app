@@ -68,6 +68,18 @@ async function authenticate(req, res, next) {
     return res.status(401).json({ error: 'Invalid or expired login' });
   }
   try {
+    if (decoded.role === 'super_admin') {
+      const sa = await db.get('SELECT id, username FROM site_admins WHERE id = $1', [decoded.userId]);
+      if (!sa) return res.status(401).json({ error: 'Account not found' });
+      req.user = {
+        userId: sa.id,
+        username: sa.username,
+        role: 'super_admin',
+        memberId: null,
+        messId: null,
+      };
+      return next();
+    }
     const user = await db.get(
       'SELECT id, username, role, member_id, mess_id FROM users WHERE id = $1',
       [decoded.userId]
@@ -94,6 +106,11 @@ function requireManager(req, res, next) {
 function requireLeader(req, res, next) {
   if (req.user && ['admin', 'manager'].includes(req.user.role)) return next();
   return res.status(403).json({ error: 'Manager access required' });
+}
+
+function requireSuperAdmin(req, res, next) {
+  if (req.user && req.user.role === 'super_admin') return next();
+  return res.status(403).json({ error: 'Site admin access required' });
 }
 
 async function userPayload(user, messId) {
@@ -239,9 +256,57 @@ app.post('/api/auth/login', async (req, res, next) => {
 
 app.get('/api/auth/me', authenticate, async (req, res, next) => {
   try {
+    if (req.user.role === 'super_admin') {
+      return res.json({
+        id: req.user.userId,
+        username: req.user.username,
+        role: 'super_admin',
+        name: req.user.username,
+        memberId: null,
+        messId: null,
+        messName: '',
+        messCode: '',
+      });
+    }
     const user = await db.get('SELECT * FROM users WHERE id = $1 AND mess_id = $2', [req.user.userId, req.user.messId]);
     if (!user) return res.status(401).json({ error: 'Account not found' });
     res.json(await userPayload(user, req.user.messId));
+  } catch (err) {
+    next(err);
+  }
+});
+
+// site-wide super admin login (no mess code - whole-site access)
+app.post('/api/auth/admin/login', async (req, res, next) => {
+  try {
+    const { username, password } = req.body;
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Enter User ID and Password' });
+    }
+    const sa = await db.get(
+      'SELECT * FROM site_admins WHERE lower(username) = lower($1)',
+      [String(username).trim()]
+    );
+    if (!sa || !bcrypt.compareSync(String(password), sa.password)) {
+      return res.status(401).json({ error: 'Invalid User ID or Password' });
+    }
+    res.json({
+      token: jwt.sign(
+        { userId: sa.id, username: sa.username, role: 'super_admin', memberId: null, messId: null },
+        JWT_SECRET,
+        { expiresIn: '30d' }
+      ),
+      user: {
+        id: sa.id,
+        username: sa.username,
+        role: 'super_admin',
+        name: sa.username,
+        memberId: null,
+        messId: null,
+        messName: '',
+        messCode: '',
+      },
+    });
   } catch (err) {
     next(err);
   }
@@ -522,6 +587,122 @@ app.put('/api/admin/reset-password', authenticate, async (req, res, next) => {
       bcrypt.hashSync(String(new_password), 10), user.id, req.user.messId,
     ]);
     res.json({ success: true, username: user.username });
+  } catch (err) { next(err); }
+});
+
+// ========== SITE ADMIN (super admin, registered before global guard) ==========
+// server-wide admin: list all messes, edit mess name/code, reset the mess's
+// manager credentials, and enter any mess to see/edit all its data as that
+// mess's manager.
+
+app.get('/api/super/messes', authenticate, requireSuperAdmin, async (req, res, next) => {
+  try {
+    const rows = await db.all(`
+      SELECT m.id, m.name, m.code, m.created_at,
+        (SELECT COUNT(*) FROM members mb WHERE mb.mess_id = m.id) AS member_count,
+        (SELECT u.username FROM users u WHERE u.mess_id = m.id
+           AND u.role IN ('admin', 'manager')
+           ORDER BY (u.role = 'admin') DESC, u.id LIMIT 1) AS manager_username
+      FROM messes m
+      ORDER BY m.created_at, m.id
+    `);
+    res.json(rows.map(r => ({
+      id: r.id,
+      name: r.name,
+      code: r.code,
+      created_at: r.created_at,
+      member_count: Number(r.member_count),
+      manager_username: r.manager_username || '',
+    })));
+  } catch (err) { next(err); }
+});
+
+app.put('/api/super/messes/:id', authenticate, requireSuperAdmin, async (req, res, next) => {
+  try {
+    const mess = await db.get('SELECT * FROM messes WHERE id = $1', [req.params.id]);
+    if (!mess) return res.status(404).json({ error: 'Mess not found' });
+    const name = req.body.name !== undefined ? String(req.body.name).trim() : mess.name;
+    let code = req.body.code !== undefined ? String(req.body.code).toUpperCase().trim() : mess.code;
+    if (!name) return res.status(400).json({ error: 'Mess name cannot be empty' });
+    if (code && code !== mess.code) {
+      const clash = await db.get('SELECT id FROM messes WHERE upper(code) = upper($1) AND id != $2', [code, mess.id]);
+      if (clash) return res.status(400).json({ error: 'এই Mess Code অন্য mess-এ আছে' });
+    } else if (!code) {
+      code = mess.code;
+    }
+    await db.query('UPDATE messes SET name = $1, code = $2 WHERE id = $3', [name, code, mess.id]);
+    res.json({ success: true, name, code });
+  } catch (err) { next(err); }
+});
+
+app.put('/api/super/messes/:id/manager-account', authenticate, requireSuperAdmin, async (req, res, next) => {
+  try {
+    const mess = await db.get('SELECT id FROM messes WHERE id = $1', [req.params.id]);
+    if (!mess) return res.status(404).json({ error: 'Mess not found' });
+    const mgr = await db.get(
+      "SELECT * FROM users WHERE mess_id = $1 AND role IN ('admin', 'manager') ORDER BY id LIMIT 1",
+      [mess.id]
+    );
+    if (!mgr) return res.status(404).json({ error: 'এই mess-এ কোনো manager account নেই' });
+
+    const { username, password } = req.body;
+    if (username === undefined && password === undefined) {
+      return res.status(400).json({ error: 'username অথবা password দিতে হবে' });
+    }
+    const sets = [];
+    const params = [];
+    if (username !== undefined) {
+      const uname = String(username).trim();
+      if (uname.length < 4) return res.status(400).json({ error: 'User ID কমপক্ষে ৪ অক্ষরের হতে হবে' });
+      if (uname.toLowerCase() !== mgr.username.toLowerCase()) {
+        const clash = await db.get(
+          'SELECT id FROM users WHERE mess_id = $1 AND lower(username) = lower($2) AND id != $3',
+          [mess.id, uname, mgr.id]
+        );
+        if (clash) return res.status(400).json({ error: 'এই User ID এই mess-এ অন্য account-এ আছে' });
+      }
+      sets.push(`username = $${sets.length + 1}`);
+      params.push(uname);
+    }
+    if (password !== undefined) {
+      if (!password || String(password).length < 4) {
+        return res.status(400).json({ error: 'Password কমপক্ষে ৪ অক্ষরের হতে হবে' });
+      }
+      sets.push(`password = $${sets.length + 1}`);
+      params.push(bcrypt.hashSync(String(password), 10));
+    }
+    params.push(mess.id, mgr.id);
+    await db.query(
+      `UPDATE users SET ${sets.join(', ')} WHERE mess_id = $${params.length - 1} AND id = $${params.length}`,
+      params
+    );
+    const fresh = await db.get('SELECT username FROM users WHERE id = $1', [mgr.id]);
+    res.json({ success: true, username: fresh.username });
+  } catch (err) {
+    if (err && err.code === '23505') return res.status(400).json({ error: 'এই User ID এই mess-এ অন্য account-এ আছে' });
+    next(err);
+  }
+});
+
+// enter a mess as its manager -> returns a normal mess-scoped token, so the
+// whole existing manager UI (dashboard, report, settings...) works unchanged
+app.post('/api/super/messes/:id/enter', authenticate, requireSuperAdmin, async (req, res, next) => {
+  try {
+    const mess = await db.get('SELECT id, name, code FROM messes WHERE id = $1', [req.params.id]);
+    if (!mess) return res.status(404).json({ error: 'Mess not found' });
+    let target = await db.get(
+      "SELECT * FROM users WHERE mess_id = $1 AND role IN ('admin', 'manager') ORDER BY id LIMIT 1",
+      [mess.id]
+    );
+    if (!target) {
+      target = await db.get('SELECT * FROM users WHERE mess_id = $1 ORDER BY id LIMIT 1', [mess.id]);
+    }
+    if (!target) return res.status(404).json({ error: 'এই mess-এ কোনো login account নেই' });
+    res.json({
+      token: signToken(target, mess.id),
+      user: await userPayload(target, mess.id),
+      superSession: true,
+    });
   } catch (err) { next(err); }
 });
 

@@ -84,6 +84,41 @@ async function call(path, opts = {}) {
   const ch = await call('/chal/bulk', { method: 'POST', token: tokenA, body: { entries: [{ member_id: memberId, pots: 2 }], date: '2026-09-22' } });
   ok('chal A ok', ch.status === 200, JSON.stringify(ch.data));
 
+  console.log('== Site admin (super admin) ==');
+  const adminLogin = await call('/auth/admin/login', { method: 'POST', body: { username: 'admin', password: 'admin12345' } });
+  ok('admin login ok', adminLogin.status === 200, JSON.stringify(adminLogin.data));
+  const adminToken = adminLogin.data.token;
+  ok('admin role super_admin', adminLogin.data.user && adminLogin.data.user.role === 'super_admin');
+
+  const list = await call('/super/messes', { token: adminToken });
+  ok('super lists all messes', list.status === 200 && Array.isArray(list.data) && list.data.length >= 2, JSON.stringify(list.data).slice(0, 220));
+  const messA = list.data.find(m => m.code === codeA);
+  ok('mess A visible with name/code/manager', messA && messA.name && messA.code && messA.manager_username === unameA, JSON.stringify(messA));
+
+  const regC = await call('/auth/register', { method: 'POST', body: { mess_name: 'টেস্ট সি', name: 'রনি', username: unameB + 'c', password: '1111' } });
+  const codeC = regC.data.user.messCode;
+  const listC = await call('/super/messes', { token: adminToken });
+  const messC = listC.data.find(m => m.code === codeC);
+
+  const upd1 = await call(`/super/messes/${messC.id}`, { method: 'PUT', token: adminToken, body: { name: 'টেস্ট সি নিউ', code: codeC } });
+  ok('super rename mess', upd1.status === 200 && upd1.data.name === 'টেস্ট সি নিউ', JSON.stringify(upd1.data));
+  const upd2 = await call(`/super/messes/${messC.id}/manager-account`, { method: 'PUT', token: adminToken, body: { username: unameB + 'cnew', password: '2222' } });
+  ok('super update manager username/password', upd2.status === 200 && upd2.data.username === unameB + 'cnew', JSON.stringify(upd2.data));
+
+  const relogin = await call('/auth/login', { method: 'POST', body: { mess_code: codeC, username: unameB + 'cnew', password: '2222' } });
+  ok('new manager credentials work', relogin.status === 200, JSON.stringify(relogin.data));
+
+  const enterC = await call(`/super/messes/${messC.id}/enter`, { method: 'POST', token: adminToken });
+  ok('enter mess returns scoped manager token', enterC.status === 200 && enterC.data.token && enterC.data.user && enterC.data.user.messCode === codeC, JSON.stringify(enterC.data.user));
+  const enterTok = enterC.data.token;
+  const enterAdd = await call('/members', { method: 'POST', token: enterTok, body: { name: 'নতুন সদস্য', phone: '01888' } });
+  ok('entered session can manage mess data', enterAdd.status === 200, JSON.stringify(enterAdd.data));
+  const enterReport = await call('/report/2026-09/2026', { token: enterTok });
+  ok('entered session sees mess report', enterReport.status === 200 && Array.isArray(enterReport.data.memberBills), JSON.stringify(enterReport.data).slice(0, 140));
+
+  const denied = await call('/super/messes', { token: tokenA });
+  ok('normal manager cannot access super list', denied.status === 403, JSON.stringify(denied.data));
+
   console.log();
   console.log(`RESULT: ${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);

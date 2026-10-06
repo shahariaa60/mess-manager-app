@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Routes, Route, NavLink, Navigate, useLocation } from 'react-router-dom'
+import { Routes, Route, NavLink, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Meals from './pages/Meals'
@@ -14,13 +14,17 @@ import MyMeals from './pages/MyMeals'
 import MyChal from './pages/MyChal'
 import MyReport from './pages/MyReport'
 import Settings from './pages/Settings'
+import SuperAdminHome from './pages/SuperAdminHome'
 import ErrorBoundary from './components/ErrorBoundary'
 import {
   IconDashboard, IconMeals, IconChal, IconBazaar, IconPayments,
   IconExpenses, IconMembers, IconReport, IconSettings, IconLogout, IconHome,
   IconMenu, IconClose,
 } from './components/ui'
-import { fetchMe, getToken, clearToken } from './api'
+import {
+  fetchMe, getToken, setToken, clearToken,
+  getSuperMode, clearSuperMode, getSuperAdminToken, clearSuperAdminToken,
+} from './api'
 
 const managerNav = [
   { path: '/dashboard', label: 'ড্যাশবোর্ড', Icon: IconDashboard },
@@ -45,6 +49,7 @@ function App() {
   const [loading, setLoading] = useState(true)
   const [menuOpen, setMenuOpen] = useState(false)
   const location = useLocation()
+  const navigate = useNavigate()
 
   const refreshUser = useCallback(async () => {
     if (!getToken()) {
@@ -66,6 +71,8 @@ function App() {
     refreshUser()
     const onLogout = () => {
       clearToken()
+      clearSuperMode()
+      clearSuperAdminToken()
       setUser(null)
       setLoading(false)
     }
@@ -78,8 +85,24 @@ function App() {
   }
 
   function logout() {
+    clearSuperMode()
+    clearSuperAdminToken()
     clearToken()
     setUser(null)
+  }
+
+  async function exitSuper() {
+    const adminTok = getSuperAdminToken()
+    setToken(adminTok || '')
+    clearSuperMode()
+    clearSuperAdminToken()
+    setMenuOpen(false)
+    if (adminTok) {
+      await refreshUser()
+      navigate('/admin', { replace: true })
+    } else {
+      setUser(null)
+    }
   }
 
   function closeMenu() {
@@ -94,8 +117,50 @@ function App() {
     return <Login onLogin={handleLogin} />
   }
 
+  // ===== Site-wide super admin =====
+  if (user.role === 'super_admin') {
+    return (
+      <div className="app">
+        <div className="mobile-topbar">
+          <h1>সাইট অ্যাডমিন</h1>
+        </div>
+        <div className={`overlay ${menuOpen ? 'show' : ''}`} onClick={closeMenu} />
+        <aside className={`sidebar ${menuOpen ? 'open' : ''}`}>
+          <div className="sidebar-header">
+            <div className="sidebar-brand">
+              <span className="brand-mark"><IconHome size={17} /></span>
+              Mess Manager
+            </div>
+            <p>সাইট অ্যাডমিন</p>
+          </div>
+          <nav>
+            <NavLink to="/admin" className={({ isActive }) => isActive ? 'active' : ''} onClick={closeMenu}>
+              <span className="nav-icon"><IconMembers size={18} /></span>
+              সব মেস
+            </NavLink>
+          </nav>
+          <div className="sidebar-footer">
+            <button className="logout-btn" onClick={logout}>
+              <span className="nav-icon"><IconLogout size={18} /></span>
+              লগআউট
+            </button>
+          </div>
+        </aside>
+        <main className="main-content">
+          <ErrorBoundary>
+            <Routes>
+              <Route path="/admin" element={<SuperAdminHome onLogin={handleLogin} />} />
+              <Route path="*" element={<Navigate to="/admin" replace />} />
+            </Routes>
+          </ErrorBoundary>
+        </main>
+      </div>
+    )
+  }
+
   const isManager = ['admin', 'manager', 'co_manager'].includes(user.role)
   const nav = isManager ? managerNav : memberNav
+  const superMode = getSuperMode()
 
   return (
     <div className="app">
@@ -140,6 +205,12 @@ function App() {
         </div>
       </aside>
       <main className="main-content">
+        {superMode && (
+          <div className="super-bar">
+            <span>সাইট-অ্যাডমিন মোড · এখন দেখছেন: <strong>{user.messName || ''}</strong></span>
+            <button onClick={exitSuper}>সব মেসে ফিরুন</button>
+          </div>
+        )}
         <ErrorBoundary>
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />

@@ -132,3 +132,11 @@ CREATE TABLE IF NOT EXISTS meal_overrides (
 );
 
 CREATE INDEX IF NOT EXISTS idx_meal_overrides_mess ON meal_overrides(mess_id);
+
+-- site-wide super admin account(s) - can view/edit every mess
+CREATE TABLE IF NOT EXISTS site_admins (
+  id SERIAL PRIMARY KEY,
+  username TEXT NOT NULL UNIQUE,
+  password TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT (to_char(now(), 'YYYY-MM-DD HH24:MI:SS'))
+);

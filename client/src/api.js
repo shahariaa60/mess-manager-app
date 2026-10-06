@@ -12,6 +12,8 @@ const API = _envApi
 
 const TOKEN_KEY = 'mess_manager_token';
 const MESS_CODE_KEY = 'mess_manager_code';
+const SUPER_CLIENT_KEY = 'mess_manager_super';
+const SUPER_ADMIN_TOKEN_KEY = 'mess_manager_super_admin_token';
 
 export function getToken() {
   return localStorage.getItem(TOKEN_KEY);
@@ -33,6 +35,32 @@ export function getMessCode() {
 export function setMessCode(code) {
   if (code) localStorage.setItem(MESS_CODE_KEY, code);
   else localStorage.removeItem(MESS_CODE_KEY);
+}
+
+// site-admin "inside a mess" mode: session is active under a mess-scoped token
+export function getSuperMode() {
+  return localStorage.getItem(SUPER_CLIENT_KEY) === '1';
+}
+
+export function setSuperMode() {
+  localStorage.setItem(SUPER_CLIENT_KEY, '1');
+}
+
+export function clearSuperMode() {
+  localStorage.removeItem(SUPER_CLIENT_KEY);
+}
+
+export function getSuperAdminToken() {
+  return localStorage.getItem(SUPER_ADMIN_TOKEN_KEY) || '';
+}
+
+export function setSuperAdminToken(token) {
+  if (token) localStorage.setItem(SUPER_ADMIN_TOKEN_KEY, token);
+  else localStorage.removeItem(SUPER_ADMIN_TOKEN_KEY);
+}
+
+export function clearSuperAdminToken() {
+  localStorage.removeItem(SUPER_ADMIN_TOKEN_KEY);
 }
 
 async function request(path, options = {}) {
@@ -86,6 +114,33 @@ export function loginUser(mess_code, username, password) {
 
 export function fetchMe() {
   return request('/auth/me');
+}
+
+// site-wide super admin (whole-site login, no mess code)
+export function loginSiteAdmin(username, password) {
+  return request('/auth/admin/login', {
+    method: 'POST',
+    public: true,
+    body: JSON.stringify({ username, password }),
+  });
+}
+
+// ========== SITE ADMIN (super admin) ==========
+
+export async function fetchSuperMesses() {
+  return request('/super/messes', { cache: 'no-store' });
+}
+
+export function updateSuperMess(id, data) {
+  return request(`/super/messes/${id}`, { method: 'PUT', body: JSON.stringify(data) });
+}
+
+export function updateSuperManagerAccount(id, data) {
+  return request(`/super/messes/${id}/manager-account`, { method: 'PUT', body: JSON.stringify(data) });
+}
+
+export function enterSuperMess(id) {
+  return request(`/super/messes/${id}/enter`, { method: 'POST' });
 }
 
 export function changePassword(current_password, new_password) {

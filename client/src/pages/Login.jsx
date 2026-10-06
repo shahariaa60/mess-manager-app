@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { loginUser, registerMess, setToken, setMessCode, getMessCode } from '../api'
+import { loginUser, registerMess, loginSiteAdmin, setToken, setMessCode, getMessCode } from '../api'
 import { IconHome, IconKey } from '../components/ui'
 
 export default function Login({ onLogin }) {
-  const [mode, setMode] = useState('login') // 'login' | 'register'
+  const [mode, setMode] = useState('login') // 'login' | 'register' | 'admin'
   const [error, setError] = useState('')
   const [msg, setMsg] = useState('')
   const [loading, setLoading] = useState(false)
@@ -30,7 +30,9 @@ export default function Login({ onLogin }) {
     setLoading(true)
     let res = null
     try {
-      if (mode === 'login') {
+      if (mode === 'admin') {
+        res = await loginSiteAdmin(f.username.trim(), f.password)
+      } else if (mode === 'login') {
         res = await loginUser(f.mess_code.trim(), f.username.trim(), f.password)
       } else {
         res = await registerMess({
@@ -49,7 +51,7 @@ export default function Login({ onLogin }) {
     setLoading(false)
     if (res && res.token) {
       setToken(res.token)
-      setMessCode(res.user.messCode)
+      if (res.user.messCode) setMessCode(res.user.messCode)
       onLogin(res.user)
     } else {
       setError((res && res.error) || 'Something went wrong.')
@@ -59,15 +61,24 @@ export default function Login({ onLogin }) {
   return (
     <div className="login-wrap">
       <form className="login-card" onSubmit={handleSubmit}>
-        <div className="login-icon">{mode === 'login' ? <IconKey size={26} /> : <IconHome size={26} />}</div>
+        <div className="login-icon">{mode === 'register' ? <IconHome size={26} /> : <IconKey size={26} />}</div>
         <h1>Mess Manager</h1>
         <p className="login-sub">
-          {mode === 'login' ? 'এক জায়গায় মেসের সব হিসাব' : 'নতুন মেস তৈরি করুন'}
+          {mode === 'login' && 'এক জায়গায় মেসের সব হিসাব'}
+          {mode === 'register' && 'নতুন মেস তৈরি করুন'}
+          {mode === 'admin' && 'সারা সাইটের অ্যাডমিন লগইন'}
         </p>
 
         {mode === 'register' && (
           <p className="helper-text" style={{ marginBottom: 16 }}>
             যে প্রথম এই mess তৈরি করবে সে-ই হবে এর <strong>Manager</strong>।
+          </p>
+        )}
+
+        {mode === 'admin' && (
+          <p className="helper-text" style={{ marginBottom: 16 }}>
+            শুধু admin login-এ সব মেসের list, নাম/Code ও Manager-এর user id/password বদলানো এবং যেকোনো mess-এর
+            হিসাব দেখা যায়।
           </p>
         )}
 
@@ -147,17 +158,38 @@ export default function Login({ onLogin }) {
         {error && <div className="login-error">{error}</div>}
 
         <button className="btn btn-primary login-btn" type="submit" disabled={loading}>
-          {loading ? 'প্রসেস হচ্ছে...' : mode === 'login' ? 'লগইন' : 'মেস তৈরি করুন'}
+          {loading
+            ? 'প্রসেস হচ্ছে...'
+            : mode === 'login' ? 'লগইন' : mode === 'register' ? 'মেস তৈরি করুন' : 'অ্যাডমিন লগইন'}
         </button>
 
         {mode === 'login' ? (
-          <p className="auth-switch">
-            এখনো কোনো mess নেই? <button type="button" onClick={() => switchMode('register')}>নতুন Mess তৈরি করুন</button>
-          </p>
+          <>
+            <p className="auth-switch">
+              এখনো কোনো mess নেই? <button type="button" onClick={() => switchMode('register')}>নতুন Mess তৈরি করুন</button>
+            </p>
+            <p className="auth-switch">
+              সারা সাইটের admin? <button type="button" onClick={() => switchMode('admin')}>অ্যাডমিন লগইন</button>
+            </p>
+          </>
+        ) : mode === 'register' ? (
+          <>
+            <p className="auth-switch">
+              আগে থেকেই mess আছে? <button type="button" onClick={() => switchMode('login')}>লগইন</button>
+            </p>
+            <p className="auth-switch">
+              সারা সাইটের admin? <button type="button" onClick={() => switchMode('admin')}>অ্যাডমিন লগইন</button>
+            </p>
+          </>
         ) : (
-          <p className="auth-switch">
-            আগে থেকেই mess আছে? <button type="button" onClick={() => switchMode('login')}>লগইন</button>
-          </p>
+          <>
+            <p className="auth-switch">
+              মেস সদস্য? <button type="button" onClick={() => switchMode('login')}>মেস লগইন</button>
+            </p>
+            <p className="auth-switch">
+              নতুন মেস? <button type="button" onClick={() => switchMode('register')}>নতুন Mess তৈরি করুন</button>
+            </p>
+          </>
         )}
       </form>
     </div>

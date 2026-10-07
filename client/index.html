@@ -5,6 +5,12 @@
     <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>Mess Manager</title>
+    <link rel="preconnect" href="https://mess-manager-app-api.onrender.com" crossorigin />
+    <script>
+      // Wake the backend as early as possible: Render free instances sleep on
+      // idle, and that cold start is the slowest part of first load.
+      try { new Image().src = 'https://mess-manager-app-api.onrender.com/api/health?_=' + Date.now(); } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

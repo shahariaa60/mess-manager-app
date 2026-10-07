@@ -1,20 +1,20 @@
-import { useCallback, useEffect, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 import { Routes, Route, NavLink, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import Login from './pages/Login'
-import Dashboard from './pages/Dashboard'
-import Meals from './pages/Meals'
-import Expenses from './pages/Expenses'
-import Members from './pages/Members'
-import Report from './pages/Report'
-import Chal from './pages/Chal'
-import Bazaar from './pages/Bazaar'
-import Payments from './pages/Payments'
-import MyDashboard from './pages/MyDashboard'
-import MyMeals from './pages/MyMeals'
-import MyChal from './pages/MyChal'
-import MyReport from './pages/MyReport'
-import Settings from './pages/Settings'
-import SuperAdminHome from './pages/SuperAdminHome'
+const Dashboard = lazy(() => import('./pages/Dashboard'))
+const Meals = lazy(() => import('./pages/Meals'))
+const Expenses = lazy(() => import('./pages/Expenses'))
+const Members = lazy(() => import('./pages/Members'))
+const Report = lazy(() => import('./pages/Report'))
+const Chal = lazy(() => import('./pages/Chal'))
+const Bazaar = lazy(() => import('./pages/Bazaar'))
+const Payments = lazy(() => import('./pages/Payments'))
+const MyDashboard = lazy(() => import('./pages/MyDashboard'))
+const MyMeals = lazy(() => import('./pages/MyMeals'))
+const MyChal = lazy(() => import('./pages/MyChal'))
+const MyReport = lazy(() => import('./pages/MyReport'))
+const Settings = lazy(() => import('./pages/Settings'))
+const SuperAdminHome = lazy(() => import('./pages/SuperAdminHome'))
 import ErrorBoundary from './components/ErrorBoundary'
 import {
   IconDashboard, IconMeals, IconChal, IconBazaar, IconPayments,
@@ -148,10 +148,12 @@ function App() {
         </aside>
         <main className="main-content">
           <ErrorBoundary>
-            <Routes>
-              <Route path="/admin" element={<SuperAdminHome onLogin={handleLogin} />} />
-              <Route path="*" element={<Navigate to="/admin" replace />} />
-            </Routes>
+            <Suspense fallback={<div className="page-loading">লোড হচ্ছে...</div>}>
+              <Routes>
+                <Route path="/admin" element={<SuperAdminHome onLogin={handleLogin} />} />
+                <Route path="*" element={<Navigate to="/admin" replace />} />
+              </Routes>
+            </Suspense>
           </ErrorBoundary>
         </main>
       </div>
@@ -212,30 +214,32 @@ function App() {
           </div>
         )}
         <ErrorBoundary>
-          <Routes>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/settings" element={<Settings user={user} onRefreshUser={refreshUser} />} />
-            {isManager ? (
-              <>
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/meals" element={<Meals />} />
-                <Route path="/chal" element={<Chal />} />
-                <Route path="/bazaar" element={<Bazaar />} />
-                <Route path="/payments" element={<Payments />} />
-                <Route path="/expenses" element={<Expenses />} />
-                <Route path="/members" element={<Members user={user} />} />
-                <Route path="/report" element={<Report user={user} />} />
-              </>
-            ) : (
-              <>
-                <Route path="/dashboard" element={<MyDashboard user={user} />} />
-                <Route path="/meals" element={<MyMeals user={user} />} />
-                <Route path="/chal" element={<MyChal user={user} />} />
-                <Route path="/report" element={<MyReport user={user} />} />
-              </>
-            )}
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
-          </Routes>
+          <Suspense fallback={<div className="page-loading">লোড হচ্ছে...</div>}>
+            <Routes>
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/settings" element={<Settings user={user} onRefreshUser={refreshUser} />} />
+              {isManager ? (
+                <>
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/meals" element={<Meals />} />
+                  <Route path="/chal" element={<Chal />} />
+                  <Route path="/bazaar" element={<Bazaar />} />
+                  <Route path="/payments" element={<Payments />} />
+                  <Route path="/expenses" element={<Expenses />} />
+                  <Route path="/members" element={<Members user={user} />} />
+                  <Route path="/report" element={<Report user={user} />} />
+                </>
+              ) : (
+                <>
+                  <Route path="/dashboard" element={<MyDashboard user={user} />} />
+                  <Route path="/meals" element={<MyMeals user={user} />} />
+                  <Route path="/chal" element={<MyChal user={user} />} />
+                  <Route path="/report" element={<MyReport user={user} />} />
+                </>
+              )}
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            </Routes>
+          </Suspense>
         </ErrorBoundary>
       </main>
     </div>

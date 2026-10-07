@@ -1001,6 +1001,8 @@ td.name {
 
 .login-sub { color: var(--muted); font-size: 14px; margin-bottom: 22px; }
 
+.page-loading { padding: 48px 16px; text-align: center; color: var(--muted); font-size: 14px; }
+
 /* ========== RESPONSIVE ========== */
 
 @media (max-width: 960px) {
